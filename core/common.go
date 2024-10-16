@@ -5,13 +5,16 @@ import (
 	"context"
 	"core/state"
 	"errors"
+	"fmt"
 	"github.com/metacubex/mihomo/constant/features"
 	"github.com/metacubex/mihomo/hub/route"
+	"github.com/samber/lo"
 	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -387,6 +390,37 @@ func genHosts(hosts, patchHosts map[string]any) {
 	}
 }
 
+func trimArr(arr []string) (r []string) {
+	for _, e := range arr {
+		r = append(r, strings.Trim(e, " "))
+	}
+	return
+}
+
+var ips = []string{"ipinfo.io", "ipapi.co", "api.ip.sb", "ipwho.is"}
+
+func overrideRules(rules *[]string) {
+	var target = ""
+	for _, line := range *rules {
+		rule := trimArr(strings.Split(line, ","))
+		l := len(rule)
+		if l != 2 {
+			return
+		}
+		if strings.ToUpper(rule[0]) == "MATCH" {
+			target = rule[1]
+			break
+		}
+	}
+	if target == "" {
+		return
+	}
+	var rulesExt = lo.Map(ips, func(ip string, index int) string {
+		return fmt.Sprintf("DOMAIN %s %s", ip, target)
+	})
+	*rules = append(rulesExt, *rules...)
+}
+
 func overwriteConfig(targetConfig *config.RawConfig, patchConfig config.RawConfig) {
 	targetConfig.ExternalController = patchConfig.ExternalController
 	targetConfig.ExternalUI = ""
@@ -425,6 +459,7 @@ func overwriteConfig(targetConfig *config.RawConfig, patchConfig config.RawConfi
 			targetConfig.DNS.Enable = true
 		}
 	}
+	overrideRules(&targetConfig.Rule)
 	//if runtime.GOOS == "android" {
 	//	targetConfig.DNS.NameServer = append(targetConfig.DNS.NameServer, "dhcp://"+dns.SystemDNSPlaceholder)
 	//} else if runtime.GOOS == "windows" {
