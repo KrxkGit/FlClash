@@ -495,6 +495,7 @@ func updateListeners(general *config.General, listeners map[string]constant.Inbo
 	}
 	runLock.Lock()
 	defer runLock.Unlock()
+	stopListeners()
 	listener.PatchInboundListeners(listeners, tunnel.Tunnel, true)
 	listener.SetAllowLan(general.AllowLan)
 	inbound.SetSkipAuthPrefixes(general.SkipAuthPrefixes)
