@@ -201,6 +201,7 @@ class ApplicationState extends State<Application> {
                     themeMode: state.themeMode,
                     theme: ThemeData(
                       useMaterial3: true,
+                      fontFamily: Fonts.miSans,
                       pageTransitionsTheme: _pageTransitionsTheme,
                       colorScheme: _getAppColorScheme(
                         brightness: Brightness.light,
@@ -210,6 +211,7 @@ class ApplicationState extends State<Application> {
                     ),
                     darkTheme: ThemeData(
                       useMaterial3: true,
+                      fontFamily: Fonts.miSans,
                       pageTransitionsTheme: _pageTransitionsTheme,
                       colorScheme: _getAppColorScheme(
                         brightness: Brightness.dark,

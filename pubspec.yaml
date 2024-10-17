@@ -72,6 +72,9 @@ flutter:
     - family: Twemoji
       fonts:
         - asset: assets/fonts/Twemoji.Mozilla.ttf
+    - family: MiSans
+      fonts:
+        - asset: assets/fonts/MiSans-Regular.ttf
     - family: Icons
       fonts:
         - asset: assets/fonts/Icons.ttf
