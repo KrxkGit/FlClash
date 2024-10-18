@@ -159,14 +159,14 @@ class _ClashContainerState extends State<ClashManager> with AppMessageListener {
   }
 
   @override
-  void onLoaded(String providerName) {
+  Future<void> onLoaded(String providerName) async {
     final appController = globalState.appController;
     appController.appState.setProvider(
       clashCore.getExternalProvider(
         providerName,
       ),
     );
-    // appController.addCheckIpNumDebounce();
+    await appController.updateGroupDebounce();
     super.onLoaded(providerName);
   }
 }
