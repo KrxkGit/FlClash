@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/metacubex/mihomo/constant/features"
+	"github.com/metacubex/mihomo/hub/route"
 	"github.com/samber/lo"
 	"os"
 	"os/exec"
@@ -478,7 +479,7 @@ func overwriteConfig(targetConfig *config.RawConfig, patchConfig config.RawConfi
 	//}
 }
 
-func patchConfig(general *config.General, controller *config.Controller) {
+func patchConfig(general *config.General, controller *config.Controller, tls *config.TLS) {
 	log.Infoln("[Apply] patch")
 	tunnel.SetSniffing(general.Sniffing)
 	tunnel.SetFindProcessMode(general.FindProcessMode)
@@ -488,6 +489,22 @@ func patchConfig(general *config.General, controller *config.Controller) {
 	tunnel.SetMode(general.Mode)
 	log.SetLevel(general.LogLevel)
 	resolver.DisableIPv6 = !general.IPv6
+
+	route.ReCreateServer(&route.Config{
+		Addr:        controller.ExternalController,
+		TLSAddr:     controller.ExternalControllerTLS,
+		UnixAddr:    controller.ExternalControllerUnix,
+		PipeAddr:    controller.ExternalControllerPipe,
+		Secret:      controller.Secret,
+		Certificate: tls.Certificate,
+		PrivateKey:  tls.PrivateKey,
+		DohServer:   controller.ExternalDohServer,
+		IsDebug:     false,
+		Cors: route.Cors{
+			AllowOrigins:        controller.Cors.AllowOrigins,
+			AllowPrivateNetwork: controller.Cors.AllowPrivateNetwork,
+		},
+	})
 }
 
 var isRunning = false
@@ -555,7 +572,7 @@ func applyConfig() error {
 		cfg, _ = config.ParseRawConfig(config.DefaultRawConfig())
 	}
 	if configParams.IsPatch {
-		patchConfig(cfg.General, cfg.Controller)
+		patchConfig(cfg.General, cfg.Controller, cfg.TLS)
 	} else {
 		closeConnections()
 		runtime.GC()
