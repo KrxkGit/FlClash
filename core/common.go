@@ -7,9 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/metacubex/mihomo/constant/features"
-	"github.com/metacubex/mihomo/hub/route"
 	"github.com/samber/lo"
-	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -158,6 +156,14 @@ func getRawConfigWithId(id string) *config.RawConfig {
 			continue
 		}
 		mapping["path"] = filepath.Join(getProfileProvidersPath(id), value)
+		if configParams.TestURL != nil {
+			hc := mapping["health-check"].(map[string]any)
+			if hc != nil {
+				if hc["url"] != nil {
+					hc["url"] = *configParams.TestURL
+				}
+			}
+		}
 	}
 	for _, mapping := range prof.RuleProvider {
 		value, exist := mapping["path"].(string)
@@ -215,16 +221,16 @@ func sideUpdateExternalProvider(p cp.Provider, bytes []byte) error {
 	switch p.(type) {
 	case *provider.ProxySetProvider:
 		psp := p.(*provider.ProxySetProvider)
-		elm, same, err := psp.SideUpdate(bytes)
-		if err == nil && !same {
-			psp.OnUpdate(elm)
+		_, _, err := psp.SideUpdate(bytes)
+		if err == nil {
+			return err
 		}
 		return nil
 	case rp.RuleSetProvider:
 		rsp := p.(*rp.RuleSetProvider)
-		elm, same, err := rsp.SideUpdate(bytes)
-		if err == nil && !same {
-			rsp.OnUpdate(elm)
+		_, _, err := rsp.SideUpdate(bytes)
+		if err == nil {
+			return err
 		}
 		return nil
 	default:
@@ -474,7 +480,6 @@ func overwriteConfig(targetConfig *config.RawConfig, patchConfig config.RawConfi
 
 func patchConfig(general *config.General, controller *config.Controller) {
 	log.Infoln("[Apply] patch")
-	route.ReStartServer(controller.ExternalController)
 	tunnel.SetSniffing(general.Sniffing)
 	tunnel.SetFindProcessMode(general.FindProcessMode)
 	dialer.SetTcpConcurrent(general.TCPConcurrent)
@@ -519,27 +524,6 @@ func stopListeners() {
 	listener.StopListener()
 }
 
-func hcCompatibleProvider(proxyProviders map[string]cp.ProxyProvider) {
-	wg := sync.WaitGroup{}
-	ch := make(chan struct{}, math.MaxInt)
-	for _, proxyProvider := range proxyProviders {
-		proxyProvider := proxyProvider
-		if proxyProvider.VehicleType() == cp.Compatible {
-			log.Infoln("Start initial Compatible provider %s", proxyProvider.Name())
-			wg.Add(1)
-			ch <- struct{}{}
-			go func() {
-				defer func() { <-ch; wg.Done() }()
-				if err := proxyProvider.Initial(); err != nil {
-					log.Errorln("initial Compatible provider %s error: %v", proxyProvider.Name(), err)
-				}
-			}()
-		}
-
-	}
-
-}
-
 func patchSelectGroup() {
 	mapping := configParams.SelectedMap
 	if mapping == nil {
@@ -575,13 +559,10 @@ func applyConfig() error {
 	} else {
 		closeConnections()
 		runtime.GC()
-		hub.UltraApplyConfig(cfg)
+		hub.ApplyConfig(cfg)
 		patchSelectGroup()
 	}
 	updateListeners(cfg.General, cfg.Listeners)
-	if isRunning {
-		hcCompatibleProvider(cfg.Providers)
-	}
 	externalProviders = getExternalProvidersRaw()
 	return err
 }
